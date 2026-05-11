@@ -1626,8 +1626,8 @@
         //   codigo text not null,
         //   unique(loja_id, codigo)
         // );
-        const SUPABASE_URL = 'https://azfpzrqnkjifgfvxxnch.supabase.co';
-        const SUPABASE_KEY = 'sb_publishable_GGFVLYVtjOv59khwvY-RTQ_ZGi9qWbF';
+     const SUPABASE_URL = 'https://acvlqbbgekdlpohiimmq.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_fqoPdWAWTxiE0H3dequ7xw_786X14i0';
         
         let supabaseClient;
         let lojaAtual = null;
@@ -1642,89 +1642,27 @@
 
         // ==================== VERIFICAR AUTENTICAÇÃO ====================
         async function verificarAutenticacao() {
-            console.log('Verificando autenticação...');
-            
+            // SEM LOGIN — loja fixa CS CENTRO
+            const LOJA_ID = 'a028e141-2c6e-4eae-86b3-042d665e6785';
+            usuarioAtual = {
+                id: 'aecb10b9-6230-48df-8a11-94af1dcce705',
+                email: 'centro@gmail.com'
+            };
             try {
-                // Verificar sessão do Supabase
-                const { data: { session }, error } = await supabaseClient.auth.getSession();
-                
-                if (error) {
-                    console.error('❌ Erro ao buscar sessão:', error);
-                    return false; // NÃO redirecionar em erro de rede
-                }
-
-                if (!session || !session.user) {
-                    console.log('❌ Usuário não autenticado, redirecionando para login...');
-                    window.location.href = 'login.html';
+                const { data: lojaInfo, error } = await supabaseClient
+                    .from('lojas').select('*').eq('id', LOJA_ID).maybeSingle();
+                if (error || !lojaInfo) {
+                    console.error('❌ Erro ao carregar loja:', error);
+                    alert('Erro ao carregar loja: ' + (error?.message || 'não encontrada'));
                     return false;
                 }
-
-                console.log('✅ Sessão ativa:', session.user.email);
-                usuarioAtual = session.user;
-
-                // Buscar loja do usuário (CORRIGIDO - query mais simples)
-                console.log('Buscando loja do usuário:', session.user.id);
-                
-                const { data: usuarioLoja, error: lojaError } = await supabaseClient
-                    .from('usuarios_loja')
-                    .select('loja_id, cargo')
-                    .eq('user_id', session.user.id)
-                    .maybeSingle(); // ✅ USA maybeSingle PARA NÃO DAR ERRO SE NÃO ENCONTRAR
-
-                if (lojaError) {
-                    console.error('❌ Erro SQL ao buscar loja:', lojaError);
-                    alert('Erro ao buscar loja: ' + lojaError.message);
-                    return false; // NÃO redirecionar em erro SQL
-                }
-
-                if (!usuarioLoja || !usuarioLoja.loja_id) {
-                    console.error('❌ Usuário sem loja associada');
-                    alert('Erro: Usuário sem loja associada.\n\nAbra diagnostico.html e clique em "Tentar Corrigir"');
-                    await supabaseClient.auth.signOut();
-                    window.location.href = 'login.html';
-                    return false;
-                }
-
-                console.log('✅ Registro encontrado em usuarios_loja:', usuarioLoja);
-
-                // Agora buscar dados completos da loja
-                const { data: lojaInfo, error: lojaInfoError } = await supabaseClient
-                    .from('lojas')
-                    .select('*')
-                    .eq('id', usuarioLoja.loja_id)
-                    .single();
-
-                if (lojaInfoError || !lojaInfo) {
-                    console.error('❌ Erro ao buscar informações da loja:', lojaInfoError);
-                    alert('Erro ao carregar informações da loja');
-                    await supabaseClient.auth.signOut();
-                    window.location.href = 'login.html';
-                    return false;
-                }
-
                 lojaAtual = lojaInfo;
                 console.log('✅ Loja carregada:', lojaAtual.nome);
-                console.log('📊 Plano:', lojaAtual.plano);
-                console.log('👤 Cargo:', usuarioLoja.cargo);
-
-                // Verificar status da loja
-                if (lojaAtual.status !== 'ATIVO') {
-                    alert('Loja suspensa ou cancelada. Entre em contato com o suporte.');
-                    await supabaseClient.auth.signOut();
-                    window.location.href = 'login.html';
-                    return false;
-                }
-
-                // Atualizar interface com nome da loja
                 atualizarInfoLoja();
-                
                 return true;
-
             } catch (error) {
-                console.error('❌ Erro crítico na verificação:', error);
-                // NÃO redirecionar automaticamente em erro de rede
-                // Apenas mostrar erro e permitir que o usuário tente novamente
-                alert('Erro ao verificar autenticação: ' + error.message + '\n\nVerifique sua conexão e recarregue a página.');
+                console.error('❌ Erro crítico:', error);
+                alert('Erro ao carregar loja: ' + error.message);
                 return false;
             }
         }
@@ -1737,9 +1675,8 @@
 
         // ==================== LOGOUT ====================
         async function fazerLogout() {
-            if (confirm('Deseja sair do sistema?')) {
-                await supabaseClient.auth.signOut();
-                window.location.href = 'login.html';
+            if (confirm('Deseja recarregar o sistema?')) {
+                window.location.reload();
             }
         }
 
@@ -2612,8 +2549,11 @@
                 console.log('Produtos:', carrinho);
                 
                 // 1. INSERIR VENDA NA TABELA VENDAS
+                const agora = new Date().toISOString();
                 const vendaData = {
                     loja_id: lojaAtual.id,
+                    data_hora: agora,
+                    data_venda: agora,
                     valor_total: valorTotal,
                     metodo_pagamento: tipoPagamento,
                     quantidade_itens: quantidadeItens,
@@ -2641,11 +2581,12 @@
                 const itensVenda = carrinho.map(item => ({
                     loja_id: lojaAtual.id,
                     venda_id: vendaRegistrada.id,
-                    codigo_produto: item.codigo,
+                    codigo_produto: String(item.codigo),
                     nome_produto: item.nome,
                     quantidade: item.quantidade,
                     preco_unitario: parseFloat(item.preco),
-                    subtotal: parseFloat(item.preco) * item.quantidade
+                    subtotal: parseFloat(item.preco) * item.quantidade,
+                    data_registro: agora
                 }));
                 
                 const { error: itensError } = await supabaseClient
@@ -2696,7 +2637,7 @@
                         .from('movimentacoes')
                         .insert([{
                             loja_id: lojaAtual.id,
-                            item_codigo: item.codigo,
+                            item_codigo: String(item.codigo),
                             tipo: 'VENDA',
                             quantidade: -item.quantidade,
                             valor_unitario: item.preco,
@@ -3223,7 +3164,8 @@
                         usuario_abertura: usuarioAtual.id,
                         valor_inicial: valor,
                         observacao_abertura: observacao,
-                        status: 'ABERTO'
+                        status: 'ABERTO',
+                        data_abertura: new Date().toISOString()
                     }])
                     .select()
                     .single();
@@ -4263,7 +4205,7 @@
                     .from('vendas')
                     .update({ 
                         status: 'CANCELADA',
-                        observacao: (venda.observacao || '') + ` | CANCELADA em ${formatarDataBrasilia(new Date().toISOString())} por ${usuarioAtual.email}`
+                        observacao: `CANCELADA em ${formatarDataBrasilia(new Date().toISOString())} por ${usuarioAtual.email}`
                     })
                     .eq('id', vendaId)
                     .eq('loja_id', lojaAtual.id);
