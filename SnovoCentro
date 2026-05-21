@@ -4043,11 +4043,12 @@
                     .eq('loja_id', lojaAtual.id)
                     .gte('data_venda', dataInicio)
                     .lte('data_venda', dataFim)
-                    .order('data_venda', { ascending: false });
+                    .order('data_venda', { ascending: false })
+                    .limit(3);
 
                 if (error) throw error;
 
-                console.log(`✅ ${vendas.length} vendas encontradas`);
+                console.log(`✅ ${vendas.length} vendas encontradas (máx. 3)`);
 
                 if (vendas.length === 0) {
                     listaDiv.innerHTML = `
@@ -4137,6 +4138,14 @@
         }
 
         async function reverterVenda(vendaId) {
+            // AUTENTICAÇÃO
+            const senhaRev = prompt('🔒 REVERSÃO DE VENDA\n\nDigite a senha de gerente para continuar:');
+            if (senhaRev === null) return;
+            if (senhaRev !== 'salgado01' && senhaRev !== 'novello01') {
+                alert('❌ Senha incorreta! Acesso negado.');
+                return;
+            }
+
             if (!confirm('⚠️ ATENÇÃO!\n\nReverter esta venda irá:\n\n• Cancelar a venda\n• Devolver produtos ao estoque\n• Impedir contabilização financeira\n\nDeseja continuar?')) {
                 return;
             }
@@ -4213,6 +4222,34 @@
                 if (vendaError) throw vendaError;
 
                 console.log('✅ Venda cancelada:', vendaId);
+
+                // NOTIFICAR GRUPO FINANCEIRO TELEGRAM
+                try {
+                    const _tknRev  = '8008178289:AAGfcm32ibQCt5Ew1U5euarrcIevAmsS0Wk';
+                    const _cidRev  = '-1003284780189';
+                    const _agoraRev = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+                    const _fmtRev  = v => `R$ ${parseFloat(v).toFixed(2).replace('.', ',')}`;
+                    // Buscar dados da venda para o relatório
+                    const { data: _vendaRev } = await supabaseClient
+                        .from('vendas').select('*').eq('id', vendaId).single();
+                    const _itensLinha = (itens || []).map(i =>
+                        `  • ${i.nome_produto} x${i.quantidade} — ${_fmtRev(i.subtotal)}`).join('\n');
+                    const _msgRev = [
+                        '🚨 *VENDA REVERTIDA*',
+                        `🏪 ${lojaAtual.nome}`,
+                        `📋 Venda: #${vendaId}`,
+                        `💰 Valor: ${_vendaRev ? _fmtRev(_vendaRev.valor_total) : '—'}`,
+                        `💳 Método: ${_vendaRev ? _vendaRev.metodo_pagamento : '—'}`,
+                        `📦 Itens devolvidos ao estoque:\n${_itensLinha || '  —'}`,
+                        `👤 Operador: ${usuarioAtual.email}`,
+                        `⏰ ${_agoraRev}`
+                    ].join('\n');
+                    await fetch(`https://api.telegram.org/bot${_tknRev}/sendMessage`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ chat_id: _cidRev, text: _msgRev, parse_mode: 'Markdown' })
+                    });
+                } catch (_e) { console.warn('Telegram reversão não enviado:', _e); }
 
                 alert('✅ VENDA REVERTIDA COM SUCESSO!\n\n• Estoque devolvido\n• Venda cancelada\n• Não será contabilizada');
 
