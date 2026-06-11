@@ -3316,15 +3316,22 @@
                 difEl.className    = 'mfc-linha-valor mfc-quebra-zero';
             }
 
-            // Mostra resultado e botão confirmar
+            // Mostra resultado (fecha caixa automaticamente, sem pedir confirmação)
             document.getElementById('mfcStepInput').style.display   = 'none';
             document.getElementById('mfcResultado').style.display   = 'block';
             document.getElementById('mfcBtnsConfirmar').style.display = 'flex';
+
+            // Fechar caixa automaticamente após calcular
+            await mfcConfirmar();
         }
 
         async function mfcConfirmar() {
             if (!_mfcDados) return;
             const d = _mfcDados;
+
+            // Oculta botão Fechar durante o processamento
+            const btnFechar = document.getElementById('mfcBtnFechar');
+            if (btnFechar) btnFechar.style.display = 'none';
 
             try {
                 const caixaId = caixaAtual.id;
@@ -3399,8 +3406,6 @@
                     .lte('data_venda', fimDiaBrasilia(hoje))
                     .order('data_venda', { ascending: true });
 
-                fecharModalFechamento();
-
                 await notificarAcaoCaixa('FECHAR', {
                     valorInicial:   d.saldoInicial,
                     valorFinal:     d.valorContado,
@@ -3421,9 +3426,14 @@
                 atualizarBotaoCaixa(false);
                 showVendaSucesso('Caixa fechado com sucesso!');
 
+                // Exibe botão Fechar para o operador dispensar a tela
+                if (btnFechar) btnFechar.style.display = 'block';
+
             } catch (error) {
                 console.error('Erro ao fechar caixa:', error);
                 alert('❌ Erro ao fechar caixa: ' + error.message);
+                // Em caso de erro, mostra botão Fechar mesmo assim
+                if (btnFechar) btnFechar.style.display = 'block';
             }
         }
 
@@ -4658,8 +4668,7 @@
             </div>
 
             <div class="mfc-btns" id="mfcBtnsConfirmar" style="display:none">
-                <button class="mfc-btn-cancel" onclick="fecharModalFechamento()">Cancelar</button>
-                <button class="mfc-btn-confirmar" id="mfcBtnConfirmar" onclick="mfcConfirmar()" style="display:flex">Confirmar Fechamento</button>
+                <button class="mfc-btn-cancel" id="mfcBtnFechar" onclick="fecharModalFechamento()" style="width:100%">✖ Fechar</button>
             </div>
         </div>
     </div>
