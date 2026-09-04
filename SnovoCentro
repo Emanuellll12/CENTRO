@@ -2858,6 +2858,7 @@
         }
 
         // ==================== FINALIZAR VENDA CRÉDITO ====================
+        // CRÉDITO = apenas registra a venda, sem passar pela maquininha (igual ao PIX)
         async function finalizarVendaCredito() {
             if (!caixaAtual || caixaAtual.status !== 'ABERTO') {
                 alert('❌ CAIXA FECHADO!\n\nAbra o caixa antes de realizar vendas.');
@@ -2867,10 +2868,17 @@
                 alert('Carrinho vazio! Adicione produtos primeiro.');
                 return;
             }
-            abrirConfirmacaoCartao('CREDITO');
+            const registroVenda = await registrarVenda('CREDITO', { manual: true, autorizacao: 'MANUAL', nsu: null, bandeira: null, parcelas: 1 });
+            if (registroVenda && registroVenda.sucesso) {
+                limparCarrinho(true);
+                showVendaSucesso(`CRÉDITO • Cód. ${registroVenda.codigo_venda}`);
+            } else {
+                alert('❌ Erro ao registrar venda no sistema:\n' + (registroVenda?.erro || 'Erro desconhecido'));
+            }
         }
 
         // ==================== FINALIZAR VENDA DÉBITO ====================
+        // DÉBITO = apenas registra a venda, sem passar pela maquininha (igual ao PIX)
         async function finalizarVendaDebito() {
             if (!caixaAtual || caixaAtual.status !== 'ABERTO') {
                 alert('❌ CAIXA FECHADO!\n\nAbra o caixa antes de realizar vendas.');
@@ -2880,7 +2888,13 @@
                 alert('Carrinho vazio! Adicione produtos primeiro.');
                 return;
             }
-            abrirConfirmacaoCartao('DEBITO');
+            const registroVenda = await registrarVenda('DEBITO', { manual: true, autorizacao: 'MANUAL', nsu: null, bandeira: null, parcelas: 1 });
+            if (registroVenda && registroVenda.sucesso) {
+                limparCarrinho(true);
+                showVendaSucesso(`DÉBITO • Cód. ${registroVenda.codigo_venda}`);
+            } else {
+                alert('❌ Erro ao registrar venda no sistema:\n' + (registroVenda?.erro || 'Erro desconhecido'));
+            }
         }
 
         // ==================== FINALIZAR VENDA DINHEIRO ====================
@@ -3968,23 +3982,15 @@
                     resultado = { metodo: 'PIX', valor: valorParcela, sucesso: true };
 
                 } else if (parcela.metodo === 'DEBITO' || parcela.metodo === 'CREDITO') {
-                    // CRED/DEB: usa popup TEF com botão finalizar manualmente
-                    const res = await _aguardarPopupTEFDividido(parcela.metodo, valorParcela);
-
-                    if (res.cancelado) {
-                        alert('❌ Pagamento cancelado.\n\nOs itens permanecem no carrinho.');
-                        // Reabre modal dividido
-                        document.getElementById('modalDividido').classList.add('active');
-                        return;
-                    }
+                    // CRED/DEB: registra direto sem maquininha (igual ao PIX)
                     resultado = {
                         metodo: parcela.metodo,
                         valor: valorParcela,
-                        autorizacao: res.manual ? 'MANUAL' : res.autorizacao,
-                        nsu:      res.manual ? null : res.nsu,
-                        bandeira: res.manual ? null : res.bandeira,
-                        parcelas: res.manual ? 1    : res.parcelas,
-                        manual:   !!res.manual,
+                        autorizacao: 'MANUAL',
+                        nsu: null,
+                        bandeira: null,
+                        parcelas: 1,
+                        manual: true,
                         sucesso: true
                     };
 
