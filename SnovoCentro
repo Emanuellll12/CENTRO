@@ -4189,7 +4189,7 @@
             // AUTENTICAÇÃO
             const senhaRev = prompt('🔒 REVERSÃO DE VENDA\n\nDigite a senha de gerente para continuar:');
             if (senhaRev === null) return;
-            if (senhaRev !== 'salgado01' && senhaRev !== 'novello01') {
+            if (senhaRev !== 'novello01') {
                 alert('❌ Senha incorreta! Acesso negado.');
                 return;
             }
